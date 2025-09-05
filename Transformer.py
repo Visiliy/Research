@@ -123,10 +123,10 @@ if __name__ == "__main__":
     embedding_dim = 512
     block_size = 256
     batch_size = 32
+    n_heads = 16
 
     mask = torch.tril(torch.ones(block_size, block_size, device=device))
     mask = mask.masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, 0.0)
-    mask = mask.view(1, 1, batch_size, block_size)
 
     embedding_layer = nn.Embedding(vocab_size, embedding_dim).to(device)
     pos_encoder = PositionalEncoding(embedding_dim).to(device)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     dataset = GPTDataset(texts, tokenizer, block_size=block_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-    model = Transformer(layers=12, d_model=512, n_heads=16, output_dim=vocab_size).to(device)
+    model = Transformer(layers=12, d_model=512, n_heads=n_heads, output_dim=vocab_size).to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     epochs = 10
 
