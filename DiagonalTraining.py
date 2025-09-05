@@ -11,14 +11,16 @@ class DiagonalTraining(nn.Module):
         self.w_array1 = nn.ModuleList()
         self.w_array2 = nn.ModuleList()
 
+        self.gelu = nn.GELU()
+
         for i in range(self.seq_len):
             diagonal_length = i + 1
             self.w_array1.append(nn.Linear(diagonal_length, diagonal_length))
 
-        for i in range(1, self.seq_len):
-            diagonal_length = self.seq_len - i
+        for j in range(self.seq_len - 1):
+            diagonal_length = j + 1
             self.w_array2.append(nn.Linear(diagonal_length, diagonal_length))
-    
+
         self._initialize_weights()
 
     def _initialize_weights(self):
@@ -29,58 +31,60 @@ class DiagonalTraining(nn.Module):
                     init.zeros_(m.bias)
 
     def forward(self, x):
-        batch_size = x.shape[0]
 
         for i in range(self.seq_len):
             array_w = []
             l = i
             r = 0
-            while r <= i and l >= 0:
-                array_w.append(x[:, r, l])
+            while r <= (self.seq_len - 1) and l >= 0:
+                array_w.append(x[:, :, r, l])
                 r += 1
                 l -= 1
-            
             if len(array_w) == 0:
                 continue
-                
-            array_w = torch.stack(array_w, dim=1)
-            array_w = self.w_array1[i](array_w)
-            
+
+            array_w = torch.stack(array_w)
+            seq_len, batch_size, heads = array_w.shape
+            array_w = array_w.view(batch_size, heads, seq_len)
+            array_w = self.gelu(self.w_array1[i](array_w))
+
             l = i
             r = 0
-            idx = 0
-            while r <= i and l >= 0 and idx < array_w.shape[1]:
-                x[:, r, l] = array_w[:, idx]
+            while r <= (self.seq_len - 1) and l >= 0:
+                x[:, :, r, l] = array_w[:, :, r]
                 r += 1
                 l -= 1
-                idx += 1
 
-        for i in range(1, self.seq_len):
-            array_w = []
-            l = self.seq_len - 1
-            r = i
-            while r < self.seq_len and l >= i:
-                array_w.append(x[:, r, l])
-                r += 1
-                l -= 1
-            
-            if len(array_w) == 0:
-                continue
-                
-            array_w = torch.stack(array_w, dim=1)
-            array_w = self.w_array2[i-1](array_w)
-            
-            l = self.seq_len - 1
-            r = i
-            idx = 0
-            while r < self.seq_len and l >= i and idx < array_w.shape[1]:
-                x[:, r, l] = array_w[:, idx]
-                r += 1
-                l -= 1
-                idx += 1
+        for i in range(self.seq_len - 1):
+            array_w2 = []
+            l = self.seq_len - i - 1
+            r = self.seq_len - 1
+
+            while r >= 1 and l <= self.seq_len - 1:
+                array_w2.append(x[:, :, r, l])
+                r -= 1
+                l += 1
+
+            array_w2 = torch.stack(array_w2)
+            seq_len, batch_size, heads = array_w2.shape
+            array_w2 = array_w2.view(batch_size, heads, seq_len)
+
+            array_w2 = self.gelu(self.w_array2[i](array_w2))
+
+            l = self.seq_len - i - 1
+            r = self.seq_len - 1
+
+            idx2 = 0
+
+            while r >= 1 and l <= self.seq_len - 1:
+
+                x[:, :, r, l] = array_w2[:, :, idx2]
+                r -= 1
+                l += 1
+                idx2 += 1
 
         return x
-    
+
 
 class DiagonalBlock(nn.Module):
 
@@ -144,9 +148,6 @@ class DiagonalBlock(nn.Module):
         result = self.d(result)
         result = self.ffn(result)
         return self.layer_norm(result)
-
-
-
 
 
 if __name__ == "__main__":
