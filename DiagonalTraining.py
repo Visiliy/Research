@@ -102,7 +102,7 @@ class DiagonalBlock(nn.Module):
             nn.Linear(embedding_dim * 4, embedding_dim)
         )
 
-        self.layer_norm = nn.LayerNorm(embedding_dim, embedding_dim)
+        self.layer_norm = nn.LayerNorm(embedding_dim)
 
         self.layer1 = nn.Linear(embedding_dim, embedding_dim)
         self.layer2 = nn.Linear(embedding_dim, embedding_dim)
@@ -138,7 +138,7 @@ class DiagonalBlock(nn.Module):
         if mask is not None:
             result += mask
         result = result / (embedding_dim ** 0.5)
-        result = F.softmax(result)
+        result = F.softmax(result, dim=-1)
         result = self.diagonal_training(result)
         result = torch.matmul(result, V)
 
