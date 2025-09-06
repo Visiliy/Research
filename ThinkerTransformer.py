@@ -8,6 +8,7 @@ from LowRankApproximation import AdaptiveLowRank
 from GaussianNoise import GaussianNoiseBlock
 from UnificationBlock import UnificationBlock
 from VectorTransformerBlock import VectorTransformerBlock
+from PatternsOfThinking import PatternsOfThinking
 
 
 class ThinkerTransformer(nn.Module):
@@ -75,6 +76,10 @@ class ThinkerTransformer(nn.Module):
         self.unification_block1 = UnificationBlock(d_model=d_model, heads=heads)
         self.unification_block2 = UnificationBlock(d_model=d_model, heads=heads)
 
+        self.patterns_of_thinking1 = PatternsOfThinking(heads=heads, embedding_dim=d_model, seq_len=seq_q)
+        self.patterns_of_thinking2 = PatternsOfThinking(heads=heads, embedding_dim=d_model, seq_len=seq_k)
+        self.patterns_of_thinking3 = PatternsOfThinking(heads=heads, embedding_dim=d_model, seq_len=seq_v)
+
         self._initialize_weights()
 
     def _initialize_weights(self):
@@ -118,6 +123,10 @@ class ThinkerTransformer(nn.Module):
         Q = self.gaussian_block1(Q, external_direction=external_directions[0], apply_noise=True)
         K = self.gaussian_block2(K, external_direction=external_directions[1], apply_noise=True, mask=k_mask)
         V = self.gaussian_block3(V, external_direction=external_directions[2], apply_noise=True, mask=v_mask)
+
+        Q = self.patterns_of_thinking1(Q)
+        K = self.patterns_of_thinking2(K, mask=mask2)
+        V = self.patterns_of_thinking3(V, mask=mask3)
 
         K = self.unification_block1(K, Q, mask=mask2)
         K = self.fft_block4(K, mask=k_mask)

@@ -28,14 +28,14 @@ class VectorTransformerBlock(nn.Module):
                     init.zeros_(m.bias)
 
     def forward(self, Q, K, V, D, mask1, mask2):
-        Q = torch.matmul(F.softmax(torch.matmul(Q, Q.transpose(-2, -1))), self.layer1(Q))
-        D = torch.matmul(F.softmax(torch.matmul(D, D.transpose(-2, -1))), self.layer4(D))
+        Q = torch.matmul(F.softmax(torch.matmul(Q, Q.transpose(-2, -1)), dim=-1), self.layer1(Q))
+        D = torch.matmul(F.softmax(torch.matmul(D, D.transpose(-2, -1)), dim=-1), self.layer4(D))
 
         q_vec = torch.matmul(Q.transpose(-2, -1), self.matrix1)
         d_vec = torch.matmul(D.transpose(-2, -1), self.matrix4)
 
-        K = torch.matmul(F.softmax(torch.matmul(K, K.transpose(-2, -1)) + mask1), self.layer2(K))
-        V = torch.matmul(F.softmax(torch.matmul(V, V.transpose(-2, -1)) + mask2), self.layer3(V))
+        K = torch.matmul(F.softmax(torch.matmul(K, K.transpose(-2, -1)) + mask1, dim=-1), self.layer2(K))
+        V = torch.matmul(F.softmax(torch.matmul(V, V.transpose(-2, -1)) + mask2, dim=-1), self.layer3(V))
 
         k_vec = torch.matmul(K.transpose(-2, -1), self.matrix2)
         v_vec = torch.matmul(V.transpose(-2, -1), self.matrix3)
