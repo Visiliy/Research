@@ -12,6 +12,7 @@ class PatternsOfThinkingBlock(nn.Module):
         self.seq_len = seq_len
 
         self.layer = nn.Linear(seq_len, seq_len)
+        self.gelu = nn.GELU()
 
         self._initialize_weights()
 
@@ -24,15 +25,29 @@ class PatternsOfThinkingBlock(nn.Module):
 
     def forward(self, x):
         x2 = F.softmax(x, dim=-1)
-        array = []
-        for i in range(self.seq_len):
-            max_num = x[:, :, i].max()
-            array.append(max_num)
-        array = torch.stack(array)
-        print(array.shape)
+        batch_size, heads, seq_len, seq_len = x2.shape
+        array = [[[0] * seq_len] * heads] * batch_size
+        for batch in range(batch_size):
+            for head in range(heads):
+                for seq in range(seq_len):
+                    m = x2[batch, head, seq].max()
+                    idx = (x2[batch, head, seq] == m).nonzero()
+                    idx = idx[0][0].item()
+                    array[batch][head][seq] = x[batch, head, seq, idx]
+        array = torch.tensor(array)
+        array = self.layer(array)
+        array = self.gelu(array)
+        for batch in range(batch_size):
+            for head in range(heads):
+                for seq in range(seq_len):
+                    m = x2[batch, head, seq].max()
+                    idx = (x2[batch, head, seq] == m).nonzero()
+                    idx = idx[0][0].item()
+                    x[batch, head, seq, idx] = array[batch][head][seq]
+        return x
 
 
-class DiagonalBlock(nn.Module):
+class PatternsOfThinking(nn.Module):
 
     def __init__(self, embedding_dim, heads, seq_len):
         super().__init__()
@@ -41,6 +56,7 @@ class DiagonalBlock(nn.Module):
         self.heads = heads
 
         self.d = nn.Dropout(0.1)
+        self.patterns_of_thinking_block = PatternsOfThinkingBlock(seq_len)
 
         self.ffn = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim * 4),
@@ -83,7 +99,7 @@ class DiagonalBlock(nn.Module):
             result += mask
         result = result / (embedding_dim ** 0.5)
         result = F.softmax(result, dim=-1)
-        result = self.diagonal_training(result)
+        result = self.patterns_of_thinking_block(result)
         result = torch.matmul(result, V)
 
         result = result.transpose(1, 2)
@@ -95,7 +111,7 @@ class DiagonalBlock(nn.Module):
 
 
 if __name__ == "__main__":
-    model = DiagonalBlock(seq_len=10, heads=12, embedding_dim=132)
+    model = PatternsOfThinking(seq_len=10, heads=12, embedding_dim=132)
     x = torch.randn((8, 10, 132))
     output = model(x)
-    print("Output shape:", output.shape)
+    print(output.shape)
