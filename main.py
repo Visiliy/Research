@@ -44,3 +44,15 @@ if __name__ == '__main__':
     print(K.shape)
     print(V.shape)
     print(D.shape)
+
+    loss1 = Q.sum()
+    loss2 = K.sum()
+    loss3 = V.sum()
+    loss4 = D.sum()
+    loss = loss1 + loss2 + loss3 + loss4
+
+    loss.backward()
+
+    for name, param in model.named_parameters():
+        if param.grad is None:
+            print(f"Нет градиентов для {name}")

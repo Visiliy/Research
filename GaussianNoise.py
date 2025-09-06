@@ -4,17 +4,12 @@ import torch.nn.functional as F
 
 
 class GaussianNoiseBlock(nn.Module):
-
     def __init__(self, embedding_dim: int, init_beta: float = 0.5, init_n: float = 0.1):
         super().__init__()
         self.embedding_dim = embedding_dim
-
         self.model_direction = nn.Parameter(torch.randn(embedding_dim))
-
         self.beta_param = nn.Parameter(torch.tensor(float(init_beta)))
-
         self.n_param = nn.Parameter(torch.tensor(float(init_n)))
-
         self.eps = 1e-8
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
@@ -49,22 +44,25 @@ class GaussianNoiseBlock(nn.Module):
         if mask is not None:
             if mask.dim() == 2:
                 mask = mask.unsqueeze(-1)
-            embeddings = embeddings * mask.to(embeddings.dtype)
-
-        ext_dir = self._broadcast_external(external_direction, (batch, seq_len, dim), device)
-        if ext_dir is not None and mask is not None:
-            ext_dir = ext_dir * mask.to(ext_dir.dtype)
+            mask = mask.to(embeddings.dtype)
+            embeddings = embeddings * mask
 
         model_dir = self._normalize(self.model_direction)
         model_dir = model_dir.view(1, 1, dim).expand(batch, seq_len, dim)
 
-        if ext_dir is None:
-            mixed = model_dir
-        else:
-            ext_norm = self._normalize(ext_dir)
-            beta = torch.sigmoid(self.beta_param)
-            mixed = beta * model_dir + (1.0 - beta) * ext_norm
+        ext_dir = self._broadcast_external(external_direction, (batch, seq_len, dim), device)
 
+        if ext_dir is None:
+            ext_dir = model_dir
+        else:
+            ext_dir = self._normalize(ext_dir)
+
+        if mask is not None:
+            model_dir = model_dir * mask
+            ext_dir = ext_dir * mask
+
+        beta = torch.sigmoid(self.beta_param)
+        mixed = beta * model_dir + (1.0 - beta) * ext_dir
         mixed_unit = self._normalize(mixed)
 
         n = F.softplus(self.n_param)
@@ -74,6 +72,9 @@ class GaussianNoiseBlock(nn.Module):
 
         magnitudes = torch.randn(batch, seq_len, 1, device=device) * n
         noise = magnitudes * mixed_unit
+
+        if mask is not None:
+            noise = noise * mask
+
         out = embeddings + noise
         return out
-
