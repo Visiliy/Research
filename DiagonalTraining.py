@@ -4,22 +4,14 @@ from torch.nn import init
 import torch.nn.functional as F
 
 
-class DiagonalTraining(nn.Module):
+class PatternsOfThinkingBlock(nn.Module):
+
     def __init__(self, seq_len):
         super().__init__()
+
         self.seq_len = seq_len
-        self.w_array1 = nn.ModuleList()
-        self.w_array2 = nn.ModuleList()
 
-        self.gelu = nn.GELU()
-
-        for i in range(self.seq_len):
-            diagonal_length = i + 1
-            self.w_array1.append(nn.Linear(diagonal_length, diagonal_length))
-
-        for j in range(self.seq_len - 1):
-            diagonal_length = j + 1
-            self.w_array2.append(nn.Linear(diagonal_length, diagonal_length))
+        self.layer = nn.Linear(seq_len, seq_len)
 
         self._initialize_weights()
 
@@ -31,59 +23,13 @@ class DiagonalTraining(nn.Module):
                     init.zeros_(m.bias)
 
     def forward(self, x):
-
+        x2 = F.softmax(x, dim=-1)
+        array = []
         for i in range(self.seq_len):
-            array_w = []
-            l = i
-            r = 0
-            while r <= (self.seq_len - 1) and l >= 0:
-                array_w.append(x[:, :, r, l])
-                r += 1
-                l -= 1
-            if len(array_w) == 0:
-                continue
-
-            array_w = torch.stack(array_w)
-            seq_len, batch_size, heads = array_w.shape
-            array_w = array_w.view(batch_size, heads, seq_len)
-            array_w = self.gelu(self.w_array1[i](array_w))
-
-            l = i
-            r = 0
-            while r <= (self.seq_len - 1) and l >= 0:
-                x[:, :, r, l] = array_w[:, :, r]
-                r += 1
-                l -= 1
-
-        for i in range(self.seq_len - 1):
-            array_w2 = []
-            l = self.seq_len - i - 1
-            r = self.seq_len - 1
-
-            while r >= 1 and l <= self.seq_len - 1:
-                array_w2.append(x[:, :, r, l])
-                r -= 1
-                l += 1
-
-            array_w2 = torch.stack(array_w2)
-            seq_len, batch_size, heads = array_w2.shape
-            array_w2 = array_w2.view(batch_size, heads, seq_len)
-
-            array_w2 = self.gelu(self.w_array2[i](array_w2))
-
-            l = self.seq_len - i - 1
-            r = self.seq_len - 1
-
-            idx2 = 0
-
-            while r >= 1 and l <= self.seq_len - 1:
-
-                x[:, :, r, l] = array_w2[:, :, idx2]
-                r -= 1
-                l += 1
-                idx2 += 1
-
-        return x
+            max_num = x[:, :, i].max()
+            array.append(max_num)
+        array = torch.stack(array)
+        print(array.shape)
 
 
 class DiagonalBlock(nn.Module):
@@ -107,8 +53,6 @@ class DiagonalBlock(nn.Module):
         self.layer1 = nn.Linear(embedding_dim, embedding_dim)
         self.layer2 = nn.Linear(embedding_dim, embedding_dim)
         self.layer3 = nn.Linear(embedding_dim, embedding_dim)
-
-        self.diagonal_training = DiagonalTraining(seq_len=seq_len)
 
         self._initialize_weights()
 
