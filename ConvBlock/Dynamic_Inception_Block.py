@@ -26,7 +26,7 @@ class LinearDynamicInceptionBlock(nn.Module):
             nn.GELU()
         )
 
-        total_output_dim = (channels // len(kernel_sizes)) * (len(kernel_sizes) + 1)  # +1 для avg_pool_branch
+        total_output_dim = (channels // len(kernel_sizes)) * (len(kernel_sizes) + 1)
         self.norm = nn.LayerNorm(total_output_dim)
 
         self._initialize_weights()
