@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import init
 import torch.nn.functional as F
 
 
@@ -30,6 +31,15 @@ class SoftSplit(nn.Module):
             nn.Linear(embedding_dim // 2, n),
             nn.Softmax(dim=-1)
         )
+
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                if m.bias is not None:
+                    init.zeros_(m.bias)
 
     def forward(self, x):
         batch_size, seq_len, embedding_dim = x.shape

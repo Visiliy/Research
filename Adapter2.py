@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import init
 import torch.nn.functional as ffn
 
 
@@ -26,10 +27,19 @@ class Adapter2(nn.Module):
 
         self.norm = nn.LayerNorm(embedding_dim)
 
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
+                if m.bias is not None:
+                    init.zeros_(m.bias)
+
     def forward(self, data_tensor):
         data_tensor = [x.transpose(-2, -1) for x in data_tensor]
         data = torch.cat(data_tensor, dim=-1)
-        
+
         new_data = self.layer(data)
         new_data = self.seq_ffn(new_data).transpose(-2, -1)
         new_data = self.norm(new_data)
