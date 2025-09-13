@@ -14,23 +14,16 @@ class DynamicPooling(nn.Module):
         elif mode == 'learnable':
             self.alpha = nn.Parameter(torch.tensor(0.5))
         elif mode == 'identity':
-            # identity mode returns input unchanged (keeps seq_len)
             pass
 
     def forward(self, x, mask: torch.Tensor = None):
-        # x: (batch, seq_len, channels) -> transpose to (batch, channels, seq_len)
-        # keep original if identity mode
         if self.mode == 'identity':
             return x
 
         x = x.transpose(1, 2)
-
-        # If mask provided, zero-out masked timesteps before pooling. Note: adaptive pooling
-        # will include zeros in averaging; for exact masked averaging consider upstream handling.
         if mask is not None:
             if mask.dim() == 2:
                 mask = mask.unsqueeze(-1)
-            # mask: (b, seq_len, 1) -> transpose to (b, 1, seq_len) to broadcast over channels
             x = x * mask.transpose(1, 2).to(x.dtype)
         if self.mode == 'adaptive':
             if self.output_size is None:
