@@ -9,6 +9,7 @@ from GaussianNoise import GaussianNoiseBlock
 from UnificationBlock import UnificationBlock
 from VectorTransformerBlock import VectorTransformerBlock
 from PatternsOfThinking import PatternsOfThinking
+from mask_utils import build_causal_mask
 
 
 class ThinkerTransformer(nn.Module):
@@ -117,10 +118,8 @@ class ThinkerTransformer(nn.Module):
         # Build causal masks based on current K and V lengths
         cur_k = K.size(1)
         cur_v = V.size(1)
-        mask2 = torch.tril(torch.ones(cur_k, cur_k, device=device))
-        mask2 = mask2.masked_fill(mask2 == 0, float('-inf')).masked_fill(mask2 == 1, 0.0)
-        mask3 = torch.tril(torch.ones(cur_v, cur_v, device=device))
-        mask3 = mask3.masked_fill(mask3 == 0, float('-inf')).masked_fill(mask3 == 1, 0.0)
+        mask2 = build_causal_mask(cur_k, cur_k, device)
+        mask3 = build_causal_mask(cur_v, cur_v, device)
 
         external_directions = self.vector_transformer(Q, K, V, D, mask1=mask2, mask2=mask3)
 
