@@ -50,7 +50,6 @@ class UnificationBlock(nn.Module):
         K = K.transpose(1, 2)
 
         result = torch.matmul(Q1, K.transpose(-2, -1))
-        # Apply causal mask shaped [seq_q, seq_k]: forbid attending to future keys
         seq_q = result.size(-2)
         seq_k = result.size(-1)
         causal = build_causal_mask(seq_q, seq_k, result.device)

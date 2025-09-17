@@ -96,7 +96,6 @@ class Attention(nn.Module):
         V = V.view(batch_size, seq_len, self.heads, self.head_dim).transpose(1, 2)
 
         score = torch.matmul(Q, K.transpose(-2, -1)) / (self.head_dim ** 0.5)
-        # Centralized causal mask
         causal = build_causal_mask(seq_len, seq_len, x.device)
         score = score + causal
         if mask is not None:

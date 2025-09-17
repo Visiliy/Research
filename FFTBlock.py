@@ -77,7 +77,6 @@ class SPECTREFFTBlock(nn.Module):
         attention_weights = (torch.conj(Q_fft) * K_fft).sum(dim=-1) / self.scale
 
         attention_scores = fft.ifft(attention_weights, dim=-1).real
-        # Apply causal mask in frequency-domain attention after IFFT back to time domain
         attention_scores = torch.softmax(attention_scores, dim=-1)
 
         output_fft = attention_scores.unsqueeze(-1) * V_fft

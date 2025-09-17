@@ -52,7 +52,6 @@ class LinearBlockSparseAttention(nn.Module):
             block_size = end_idx - i
 
             q_block = q[:, :, i:end_idx, :]
-            # Causal within block: restrict keys/values to <= current block range
             k_block = k[:, :, i:end_idx, :]
             v_block = v[:, :, i:end_idx, :]
 

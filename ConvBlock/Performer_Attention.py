@@ -60,6 +60,4 @@ class LinearPerformerAttention(nn.Module):
         if 'mask' in locals() and mask is not None:
             if mask.shape[0] == out.shape[0] and mask.shape[1] == out.shape[1]:
                 out = out * mask.to(out.dtype)
-        # Causality is enforced upstream via masks and local attention windows
-
         return out

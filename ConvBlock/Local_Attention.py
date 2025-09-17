@@ -45,7 +45,6 @@ class LinearLocalAttention(nn.Module):
 
         for center in range(n):
             start = max(0, center - self.window_size // 2)
-            # Causal: forbid attending to future tokens
             end = center + 1
             window_size = end - start
 
