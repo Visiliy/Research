@@ -5,29 +5,35 @@ import torch.nn.functional as F
 
 
 class PatternsOfThinkingBlock(nn.Module):
-    def __init__(self, seq_len):
+    def __init__(self):
         super().__init__()
-        self.seq_len = seq_len
-        self.layer = nn.Linear(seq_len, seq_len)
+        # Sequence-length agnostic smoothing over the last dimension
+        self.conv = nn.Conv1d(1, 1, kernel_size=3, padding=1)
         self.gelu = nn.GELU()
         self._initialize_weights()
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, nn.Linear):
+            if isinstance(m, (nn.Linear, nn.Conv1d)):
                 init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
-                if m.bias is not None:
+                if getattr(m, 'bias', None) is not None:
                     init.zeros_(m.bias)
 
     def forward(self, x):
-        max_indices = torch.argmax(x, dim=-1, keepdim=True)
+        # x: [batch, heads, seq, seq]
+        batch, heads, seq_len, _ = x.shape
+        max_indices = torch.argmax(x, dim=-1, keepdim=True)  # [b, h, seq, 1]
 
-        max_values = torch.gather(x, -1, max_indices)
+        max_values = torch.gather(x, -1, max_indices)  # [b, h, seq, 1]
 
-        transformed = self.layer(max_values.squeeze(-1))
-        transformed = self.gelu(transformed)
+        # Apply conv over the seq dimension in a length-agnostic way
+        t = max_values.squeeze(-1)  # [b, h, seq]
+        t = t.reshape(batch * heads, 1, seq_len)  # [b*h, 1, seq]
+        t = self.conv(t)
+        transformed = self.gelu(t.squeeze(1))  # [b*h, seq]
+        transformed = transformed.view(batch, heads, seq_len)  # [b, h, seq]
 
-        mask = F.one_hot(max_indices.squeeze(-1), num_classes=self.seq_len).float()
+        mask = F.one_hot(max_indices.squeeze(-1), num_classes=seq_len).float()  # [b, h, seq, seq]
         inverted_mask = 1 - mask
 
         x = x * inverted_mask
@@ -44,7 +50,7 @@ class PatternsOfThinking(nn.Module):
         self.seq_len = seq_len
 
         self.d = nn.Dropout(0.1)
-        self.patterns_of_thinking_block = PatternsOfThinkingBlock(seq_len)
+        self.patterns_of_thinking_block = PatternsOfThinkingBlock()
 
         self.ffn = nn.Sequential(
             nn.Linear(embedding_dim, embedding_dim * 4),

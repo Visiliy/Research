@@ -11,8 +11,6 @@ class Adapter2(nn.Module):
         self.embedding_dim = embedding_dim
         self.seq_len = seq_len
 
-        self.layer = nn.Linear(n, seq_len)
-        
         self.seq_ffn = nn.Sequential(
             nn.Linear(seq_len, seq_len * 4),
             nn.GELU(),
@@ -39,8 +37,8 @@ class Adapter2(nn.Module):
     def forward(self, data_tensor):
         data_tensor = [x.transpose(-2, -1) for x in data_tensor]
         data = torch.cat(data_tensor, dim=-1)
-
-        new_data = self.layer(data)
+        # Adaptively pool concatenated sequences to fixed seq_len along the last dimension
+        new_data = ffn.adaptive_avg_pool1d(data, self.seq_len)
         new_data = self.seq_ffn(new_data).transpose(-2, -1)
         new_data = self.norm(new_data)
 

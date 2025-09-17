@@ -6,7 +6,7 @@ from ConvBlock import DynamicPooling, LinearPerformerAttention, LinearParameteri
 class ConvBlock(nn.Module):
     def __init__(self, dim, heads=8, dropout=0.1):
         super().__init__()
-        self.dynamic_pooling = DynamicPooling(output_size=None, mode='identity')
+        self.dynamic_pooling = DynamicPooling(output_size=None)
         self.performer_attention = LinearPerformerAttention(dim, heads, feature_dim=256, dropout=dropout)
         self.parameterization_kernel = LinearParameterizationKernel(dim, dim, feature_dim=32)
         self.kernel_compression = FastKernelCompression(dim, reduction_ratio=4)

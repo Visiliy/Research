@@ -4,8 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
 from torch.utils.data import DataLoader, random_split
-from amps_dataset import AmpsTextDataset
-
 from ThinkerTransformer import ThinkerTransformer
 from Adapter1 import Adapter1
 from Adapter2 import Adapter2
@@ -88,11 +86,13 @@ class UnifiedModel(nn.Module):
         seg0, seg1, seg2, seg3 = self.adapter1(x, mask)
         D, K, V, Q = seg0, seg1, seg2, seg3
         if self.main_model is None or self.adapter2 is None:
-            self._lazy_build((Q, K, V, V))
+            self._lazy_build((Q, K, V, D))
         q_out, k_out, v_out, d_out = self.main_model(Q, K, V, D)
         y = self.adapter2([self.layer1(q_out), self.layer2(k_out), self.layer3(v_out), self.layer4(d_out)])
         return self.out_layer(y)
 
 
 if __name__ == '__main__':
-    pass
+    model = UnifiedModel(seq_len=10, d_model=128, heads=8, dropout=0.1, output_dim=256)
+    data = torch.randn(3, 10, 128)
+    print(model(data).shape)

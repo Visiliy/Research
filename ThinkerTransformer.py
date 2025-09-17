@@ -96,11 +96,7 @@ class ThinkerTransformer(nn.Module):
         k_mask = torch.ones(batch, K.size(1), device=device, dtype=torch.bool)
         v_mask = torch.ones(batch, V.size(1), device=device, dtype=torch.bool)
 
-        mask2 = torch.tril(torch.ones(self.seq_k, self.seq_k, device=device))
-        mask2 = mask2.masked_fill(mask2 == 0, float('-inf')).masked_fill(mask2 == 1, 0.0)
-
-        mask3 = torch.tril(torch.ones(self.seq_v, self.seq_v, device=device))
-        mask3 = mask3.masked_fill(mask3 == 0, float('-inf')).masked_fill(mask3 == 1, 0.0)
+        # Causal masks will be built later using current sequence lengths
 
         Q = self.conv_block1(Q)
         K = self.conv_block2(K, mask=k_mask)
@@ -117,6 +113,14 @@ class ThinkerTransformer(nn.Module):
         Q, _, _ = self.lowrank_block1(Q)
         K, _, _ = self.lowrank_block2(K, mask=k_mask)
         V, _, _ = self.lowrank_block3(V, mask=v_mask)
+
+        # Build causal masks based on current K and V lengths
+        cur_k = K.size(1)
+        cur_v = V.size(1)
+        mask2 = torch.tril(torch.ones(cur_k, cur_k, device=device))
+        mask2 = mask2.masked_fill(mask2 == 0, float('-inf')).masked_fill(mask2 == 1, 0.0)
+        mask3 = torch.tril(torch.ones(cur_v, cur_v, device=device))
+        mask3 = mask3.masked_fill(mask3 == 0, float('-inf')).masked_fill(mask3 == 1, 0.0)
 
         external_directions = self.vector_transformer(Q, K, V, D, mask1=mask2, mask2=mask3)
 
